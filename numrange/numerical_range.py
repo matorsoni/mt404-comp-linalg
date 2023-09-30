@@ -86,8 +86,8 @@ def numrange_boundary(A: np.ndarray, n_points: int):
         return np.linspace(eig_vals.min(), eig_vals.max(), n_points)
 
     # Check if A is normal.
-    if np.array_equal(A@A_t, A_t@A):
-        print("A is normal")
+    if np.array_equal(A @ A_t, A_t @ A):
+        print("A is Normal")
         # If A is normal, its numerical range is the convex hull of its eigenvalues.
         eig_vals = np.linalg.eigvals(A)
         # eig_vals as x,y points in cartesian coordinates
@@ -137,7 +137,7 @@ def plot_numrange(A: np.ndarray, nbound: int, nwithin: int):
     Plot numerical range of A.
     '''
     plot_point_lists(
-        boundary=compute_numrange_boundary(A, nbound),
+        boundary=numrange_boundary(A, nbound),
         interior=sample_points_numrange(A, nwithin),
         eigvalues=np.linalg.eigvals(A)
     )
@@ -145,8 +145,40 @@ def plot_numrange(A: np.ndarray, nbound: int, nwithin: int):
 
 ### Usage of the functions implemented above.
 def main():
-    A = np.array([[2+1j, 0+1j], [1+0j, 1+2j]])
+    A_ellipse = np.array([[2+1j, 0+1j], [1+0j, 1+2j]])
+    plot_numrange(A_ellipse, nbound=100, nwithin=20000)
+
+    A_circle = np.diag([np.exp(1j * 2 * np.pi * n / 10) for n in range(10)])
+    plot_numrange(A_circle, nbound=100, nwithin=20000)
+
+    def rand_complex_mat(n: int, l=1.0):
+        shape = (n,n)
+        return np.random.uniform(-l, l, shape) + 1.j * np.random.uniform(-l, l, shape)
+
+    # Spectrum preserving matrix transform.
+    T = rand_complex_mat(10, 1.0)
+    T_inv = np.linalg.inv(T)
+
+    A = T @ A_circle @ T_inv
     plot_numrange(A, nbound=100, nwithin=20000)
+
+    A = A_circle
+    A[0,0] += 2.0
+    plot_numrange(A, nbound=100, nwithin=20000)
+
+    A[0,8] += 2.0
+    plot_numrange(A, nbound=100, nwithin=20000)
+
+    A = rand_complex_mat(8, 1.0)
+    plot_numrange(A, nbound=100, nwithin=20000)
+
+    # Hermitian matrix example.
+    A = np.array([[2, 1], [1, 2]])
+    plot_numrange(A, nbound=100, nwithin=100)
+
+    # Normal matrix example.
+    A = np.array([[1,1,0], [0,1,1], [1,0,1]])
+    plot_numrange(A, nbound=100, nwithin=100)
 
 if __name__ == "__main__":
     main()
