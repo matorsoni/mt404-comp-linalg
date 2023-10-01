@@ -35,25 +35,30 @@ def compute_numrange_boundary(A: np.ndarray, n_points: int):
     if n_points == 0:
         return []
 
-    bound_points = []
-    for i in range(n_points):
-        theta = 2 * i * np.pi / n_points
+    # Retrieve indexed eigenvector from list and compute boundary point.
+    def boundary_point(Matrix, Index, Eigenvals, Eigenvecs):
+        eigval = Eigenvals[Index]
+        eigvec = Eigenvecs[:, Index]
+        eigvec = eigvec / (eigvec.T.conj() @ eigvec) # normalized
+        return eigvec.T.conj() @ A @ eigvec
+
+    boundary_max = []
+    boundary_min = []
+    n = int(n_points / 2) # half since we are computing 2 points per iteration now.
+    for i in range(n):
+        theta = i * np.pi / n
         A_rot = A * np.exp(theta * 1j)
         # Hermitian part of A rotated
         A_h = 0.5 * (A_rot + A_rot.T.conj())
-        # Compute max eigenvalue with corresponding eigenvector
         eigenvals, eigenvecs = np.linalg.eig(A_h)
-        ind = np.argmax(eigenvals)
-        l_max = eigenvals[ind]
-        v_max = eigenvecs[:, ind]
-        v_max = v_max / (v_max.T.conj() @ v_max) # normalized
 
-        # Add to list of boundary points
-        bound_points.append(v_max.T.conj() @ A @ v_max)
+        # Add to list of boundary points corresponding to min/max eigenvectors.
+        boundary_max.append(boundary_point(A, np.argmax(eigenvals), eigenvals, eigenvecs))
+        boundary_min.append(boundary_point(A, np.argmin(eigenvals), eigenvals, eigenvecs))
 
-    # Add first point to get a closed polyline
-    bound_points.append(bound_points[0])
-    return bound_points
+    boundary_max.extend(boundary_min)
+    boundary_max.append(boundary_max[0]) # make polyline closed
+    return boundary_max
 
 def numrange_boundary(A: np.ndarray, n_points: int):
     '''
@@ -179,7 +184,7 @@ def main():
 
     # Normal matrix example.
     A = np.array([[1,1,0], [0,1,1], [1,0,1]])
-    plot_numrange(A, nbound=100, nwithin=100)
+    plot_numrange(A, nbound=100, nwithin=1000)
 
     # Simple performance test.
     import time
