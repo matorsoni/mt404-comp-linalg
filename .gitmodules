@@ -1,0 +1,3 @@
+[submodule "low_rank_approx/eigen"]
+	path = low_rank_approx/eigen
+	url = https://gitlab.com/libeigen/eigen.git
