@@ -14,12 +14,25 @@ tuple<MatrixXd, MatrixXd, MatrixXd> SVD_eigen(const MatrixXd& matrix)
     return make_tuple(svd.matrixU(), svd.singularValues().asDiagonal(), svd.matrixV());
 }
 
-// TODO: My SVD
 tuple<MatrixXd, MatrixXd, MatrixXd> SVD(const MatrixXd& matrix)
 {
-    const int rows = matrix.rows();
-    const int cols = matrix.cols();
-    return make_tuple(MatrixXd(rows, rows), MatrixXd(rows, cols), MatrixXd(cols, cols));
+    const MatrixXd M = matrix * matrix.transpose();
+    const MatrixXd N = matrix.transpose() * matrix;
+
+    EigenSolver<MatrixXd> eigen_solver(M);
+    VectorXd eigenvals = eigen_solver.eigenvalues().real();
+    MatrixXd U = eigen_solver.eigenvectors().real();
+
+    EigenSolver<MatrixXd> eigen_solver2(N);
+    MatrixXd V = eigen_solver2.eigenvectors().real();
+
+    // Compute the singular values and matrix U
+    MatrixXd S(matrix.rows(), matrix.cols());
+    S.setZero();
+    for (int i = 0; i < min(matrix.rows(), matrix.cols()); i++)
+        S(i, i) = sqrt(eigenvals(i));
+
+    return make_tuple(U, S, V);
 }
 
 
@@ -49,7 +62,6 @@ vector<int> prime_factors(int n)
     return factors;
 }
 
-
 tuple<MatrixXd, MatrixXd> low_rank_approx(const MatrixXd& C, int p, int q, int r, int s)
 {
     const int m = C.rows();
@@ -57,7 +69,7 @@ tuple<MatrixXd, MatrixXd> low_rank_approx(const MatrixXd& C, int p, int q, int r
     assert(m == p * r);
     assert(n == q * s);
 
-    const auto [U, S, V] = SVD_eigen(C);
+    const auto [U, S, V] = SVD(C);
 
     const auto sqrt_s1 = sqrt(S(0,0));
     const auto u1 = sqrt_s1 * U.col(0);
@@ -95,16 +107,26 @@ vector<tuple<MatrixXd, MatrixXd>> low_rank_approx_complete(const MatrixXd& matri
     const int n = matrix.cols();
 
     // Letting A_pq and B_rs be the sub-matrices such that C = A x B,
-    // we must check if m = pr and n = qs admits non-trivial solutions (p=q=1 or r=s=1).
+    // we must compute the low rank approximation for each valid m = pr and n = qs.
+    vector<tuple<int, int, int, int>> dimension_pairs;  // pq rs pairs
     const auto m_factors = prime_factors(m);
     const auto n_factors = prime_factors(n);
-    if (m_factors.size() == 1 || n_factors.size() == 1) {
-        // If only prime factor is the umber itself, one of p,q,r,s must be 1 -> return empty list
-        return list_of_matrices;
+    int q = 1;
+    for (int i : m_factors) {
+        int r = 1;
+        for (int j : n_factors) {
+            if (q == r)
+                dimension_pairs.push_back(make_tuple(m/r, q, r, n/q));
+            r *= j;
+        }
+        q *= i;
     }
 
-    // for each pair ....
-    // lowrankApprrox (); list_of_matrices.append()
+    for (const auto [P, Q, R, S] : dimension_pairs) {
+        list_of_matrices.emplace_back(
+            low_rank_approx(matrix, P, Q, R, S)
+        );
+    }
 
     return list_of_matrices;
 }
@@ -126,13 +148,13 @@ bool matrix_are_equal(const MatrixXd& A, const MatrixXd& B, double tol) {
     return true;
 }
 
-double spectral_norm(const Eigen::MatrixXd& matrix)
+double spectral_norm(const MatrixXd& matrix)
 {
     JacobiSVD<MatrixXd> svd(matrix, ComputeThinU | ComputeThinV);
     return svd.singularValues()(0);
 }
 
-double frobenius_norm(const Eigen::MatrixXd& matrix)
+double frobenius_norm(const MatrixXd& matrix)
 {
     return matrix.norm();
 }
